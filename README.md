@@ -102,16 +102,12 @@ Register `on-focus.sh` as a pane-focus hook in cmux settings.
 
 ```
 Claude Code (JSON via stdin)
-  │
-  ├─→ statusline.sh ─→ stdout (terminal display)
-  │
-  ├─→ context-tracker.sh ─→ cmux set-progress + cache write
-  │
-  └─→ task-tracker.sh ─→ cmux set-status + task state cache
-                              │
-cmux (pane-focus event)       │
-  │                           │
-  └─→ on-focus.sh ─→ restore sidebar from cache
+  ├─→ statusline.sh        ─→ stdout (terminal display)
+  ├─→ context-tracker.sh   ─→ cmux set-progress + cache write
+  └─→ task-tracker.sh      ─→ cmux set-status + task state cache
+
+cmux (pane-focus event)
+  └─→ on-focus.sh          ─→ restore sidebar from cache
 ```
 
 ### Cache
