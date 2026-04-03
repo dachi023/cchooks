@@ -54,6 +54,8 @@ scripts/
   cmux/                   # cmux integration (no-op if cmux is unavailable)
     lib.sh                # Shared library (constants & helpers)
     on-focus.sh           # cmux pane-focus hook → restore sidebar from cache
+    on-stop.sh            # Stop hook → save resume command for session recovery
+    show-resume.sh        # Display saved resume commands
     claude-code/          # Claude Code hooks that update cmux sidebar
       context-tracker.sh  # StatusLine hook → context usage in sidebar
       task-tracker.sh     # PostToolUse hook → task progress in sidebar
@@ -104,15 +106,48 @@ Register `on-focus.sh` as a pane-focus hook in cmux settings.
 Claude Code (JSON via stdin)
   ├─→ statusline.sh        ─→ stdout (terminal display)
   ├─→ context-tracker.sh   ─→ cmux set-progress + cache write
-  └─→ task-tracker.sh      ─→ cmux set-status + task state cache
+  ├─→ task-tracker.sh      ─→ cmux set-status + task state cache
+  └─→ on-stop.sh           ─→ resume command to /dev/tty + file
 
 cmux (pane-focus event)
   └─→ on-focus.sh          ─→ restore sidebar from cache
+```
+
+### Session Resume
+
+`on-stop.sh` runs as a Claude Code Stop hook. On every session stop it:
+
+1. Echoes `claude --resume <session_id>` to the terminal (best-effort — visible in pane scrollback if cmux preserves it across restart)
+2. Saves the resume command to `~/.claude/cmux-resume/<project_key>`
+
+After a cmux restart, run `show-resume.sh` to list saved sessions:
+
+```
+$ bash ~/.claude/scripts/cmux/show-resume.sh
+  /Users/you/project
+    claude --resume abc-123  (2026-04-03 17:46)
+```
+
+Add the Stop hook to `~/.claude/settings.json`:
+
+```json
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/cmux/on-stop.sh"
+          }
+        ]
+      }
+    ]
 ```
 
 ### Cache
 
 - `/tmp/cmux-claude-status/<surface_key>` — context usage (`context_pct=42.5`)
 - `/tmp/cmux-claude-tasks/<surface_key>.json` — task state (JSON)
+- `~/.claude/cmux-resume/<project_key>` — resume commands (persistent)
 
 Cached per pane. `on-focus.sh` restores the sidebar when switching focus.
