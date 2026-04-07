@@ -1,102 +1,113 @@
 # cchooks
 
-Custom hooks and status scripts for Claude Code.
+Custom hooks for Claude Code, with optional cmux integration.
 
 ## Install
 
 ```sh
 git clone https://github.com/dachi023/cchooks ~/.claude/scripts
+cd ~/.claude/scripts
+./install.sh
 ```
 
-## Quick Start (without cmux)
+The clone location is up to you — `install.sh` resolves paths relative to itself. Subsequent examples assume `~/.claude/scripts`; adjust hook paths if you clone elsewhere.
 
-Only requires jq. Add hooks to `~/.claude/settings.json`:
+`install.sh` creates:
+
+- `~/.claude/CLAUDE.md` → `claude/instructions.md` (global user instructions)
+- `~/.config/cmux/cmux.json` → `cmux/cmux.json` (only if cmux is detected)
+
+Hook registration in `~/.claude/settings.json` is left manual — see below.
+
+## Structure
+
+```
+scripts/
+  install.sh            # One-shot symlink setup
+
+  claude/               # Works with Claude Code alone (no cmux)
+    instructions.md     # → ~/.claude/CLAUDE.md
+    statusline.sh       # StatusLine hook → terminal status line
+    say-output.sh       # Stop hook       → TTS + sound (macOS)
+
+  cmux/                 # Requires cmux
+    cmux.json           # → ~/.config/cmux/cmux.json (command palette entries)
+    lib.sh              # Shared bash helpers
+    sidebar-context.sh  # CC StatusLine hook   → cmux context progress bar
+    sidebar-task.sh     # CC PostToolUse hook  → cmux task pill
+    sidebar-focus.sh    # cmux pane-focus hook → restore sidebar from cache
+    resume-save.sh      # CC Stop hook         → save "claude --resume ..."
+    bin/                # Manually-invoked CLIs
+      resume-show.sh    # List saved resume commands
+      new-workspace.sh  # Create a 7:3 split workspace (to be retired; see cmux.json)
+```
+
+The split is intentional: install `claude/` alone and everything works without cmux. Install `cmux/` too and you get sidebar progress bars, task pills, and session-resume recovery tied to cmux restarts.
+
+## Hooks setup
+
+After `install.sh`, register hooks in `~/.claude/settings.json`.
+
+### Without cmux
 
 ```json
 {
   "hooks": {
     "StatusLine": [
-      {
-        "type": "command",
-        "command": "bash ~/.claude/scripts/claude-code/statusline.sh"
-      }
+      { "type": "command", "command": "bash ~/.claude/scripts/claude/statusline.sh" }
+    ],
+    "Stop": [
+      { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" }
     ]
   }
 }
 ```
 
-This displays model name, rate limits, and session ID in the status line:
+`statusline.sh` produces a line like:
 
 ```
 Opus │ 5h:⣿⣿⣿⣿⡆⣀⣀⣀ 55%(20:00) │ 7d:⣿⣿⡆⣀⣀⣀⣀⣀ 30% │ claude --resume abc-123
 ```
 
-On macOS, you can also add say-output.sh for text-to-speech and sound on completion:
+`say-output.sh` uses macOS `say` + `afplay` for completion audio.
 
-```json
-    "Stop": [
-      {
-        "type": "command",
-        "command": "bash ~/.claude/scripts/claude-code/say-output.sh"
-      }
-    ]
-```
+### With cmux
 
-For cmux sidebar integration, see the "cmux Integration" section below.
-
-## Directory Structure
-
-```
-scripts/
-  claude-code/            # Standalone Claude Code scripts
-    statusline.sh         # StatusLine hook → stdout status display
-    say-output.sh         # Stop hook → text-to-speech + sound (macOS)
-  cmux/                   # cmux integration (no-op if cmux is unavailable)
-    lib.sh                # Shared library (constants & helpers)
-    on-focus.sh           # cmux pane-focus hook → restore sidebar from cache
-    on-stop.sh            # Stop hook → save resume command for session recovery
-    show-resume.sh        # Display saved resume commands
-    claude-code/          # Claude Code hooks that update cmux sidebar
-      context-tracker.sh  # StatusLine hook → context usage in sidebar
-      task-tracker.sh     # PostToolUse hook → task progress in sidebar
-```
-
-## Dependencies
-
-- jq — required by all scripts
-- say, afplay — say-output.sh only (macOS built-in)
-- cmux — `cmux/` only. Gracefully exits if not installed
-
-## cmux Integration
-
-Displays context window usage and task progress in the cmux sidebar.
-
-Add these hooks to `~/.claude/settings.json`:
+Stack these on top of the above:
 
 ```json
 {
   "hooks": {
     "StatusLine": [
-      {
-        "type": "command",
-        "command": "bash ~/.claude/scripts/claude-code/statusline.sh"
-      },
-      {
-        "type": "command",
-        "command": "bash ~/.claude/scripts/cmux/claude-code/context-tracker.sh"
-      }
+      { "type": "command", "command": "bash ~/.claude/scripts/claude/statusline.sh" },
+      { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-context.sh" }
     ],
     "PostToolUse": [
-      {
-        "type": "command",
-        "command": "bash ~/.claude/scripts/cmux/claude-code/task-tracker.sh"
-      }
+      { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-task.sh" }
+    ],
+    "Stop": [
+      { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" },
+      { "type": "command", "command": "bash ~/.claude/scripts/cmux/resume-save.sh" }
     ]
   }
 }
 ```
 
-Register `on-focus.sh` as a pane-focus hook in cmux settings.
+Then register `cmux/sidebar-focus.sh` as a pane-focus hook in cmux settings (needed to restore the sidebar when switching panes).
+
+## Custom Commands (cmux.json)
+
+`cmux/cmux.json` defines entries for the cmux command palette (Cmd+P). `install.sh` symlinks it to `~/.config/cmux/cmux.json` automatically. cmux live-reloads the file on save — no restart needed.
+
+Current entries:
+
+- `New Workspace (7:3)` — creates a new workspace with a 7:3 left-right split. Will replace `cmux/bin/new-workspace.sh` once [manaflow-ai/cmux#2429](https://github.com/manaflow-ai/cmux/issues/2429) is fixed (currently the `split` ratio is ignored and falls back to 50:50).
+
+## Dependencies
+
+- `jq` — required by most scripts
+- `say`, `afplay` — `claude/say-output.sh` only (macOS built-in)
+- `cmux` — `cmux/` only. Scripts gracefully no-op if cmux is absent
 
 ## How It Works
 
@@ -104,44 +115,32 @@ Register `on-focus.sh` as a pane-focus hook in cmux settings.
 
 ```
 Claude Code (JSON via stdin)
-  ├─→ statusline.sh        ─→ stdout (terminal display)
-  ├─→ context-tracker.sh   ─→ cmux set-progress + cache write
-  ├─→ task-tracker.sh      ─→ cmux set-status + task state cache
-  └─→ on-stop.sh           ─→ resume command to /dev/tty + file
+  ├─→ claude/statusline.sh     → stdout (terminal status line)
+  ├─→ claude/say-output.sh     → macOS TTS + completion sound
+  ├─→ cmux/sidebar-context.sh  → cmux progress bar + per-surface cache
+  ├─→ cmux/sidebar-task.sh     → cmux task pill + per-surface cache
+  └─→ cmux/resume-save.sh      → resume command to /dev/tty + persistent file
 
 cmux (pane-focus event)
-  └─→ on-focus.sh          ─→ restore sidebar from cache
+  └─→ cmux/sidebar-focus.sh    → restore sidebar from cache for focused surface
 ```
 
 ### Session Resume
 
-`on-stop.sh` runs as a Claude Code Stop hook. On every session stop it:
+`cmux/resume-save.sh` runs as a Claude Code Stop hook. On every session stop it:
 
 1. Echoes `claude --resume <session_id>` to the terminal (best-effort — visible in pane scrollback if cmux preserves it across restart)
 2. Saves the resume command to `~/.claude/cmux-resume/<project_key>`
 
-After a cmux restart, run `show-resume.sh` to list saved sessions:
+After a cmux restart, run `cmux/bin/resume-show.sh` to list saved sessions:
 
 ```
-$ bash ~/.claude/scripts/cmux/show-resume.sh
+$ ~/.claude/scripts/cmux/bin/resume-show.sh
   /Users/you/project
     claude --resume abc-123  (2026-04-03 17:46)
-```
 
-Add the Stop hook to `~/.claude/settings.json`:
-
-```json
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/cmux/on-stop.sh"
-          }
-        ]
-      }
-    ]
+$ ~/.claude/scripts/cmux/bin/resume-show.sh --cwd
+claude --resume abc-123
 ```
 
 ### Cache
@@ -150,4 +149,4 @@ Add the Stop hook to `~/.claude/settings.json`:
 - `/tmp/cmux-claude-tasks/<surface_key>.json` — task state (JSON)
 - `~/.claude/cmux-resume/<project_key>` — resume commands (persistent)
 
-Cached per pane. `on-focus.sh` restores the sidebar when switching focus.
+Per-pane caches are restored by `cmux/sidebar-focus.sh` on focus change.
