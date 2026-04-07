@@ -1,0 +1,37 @@
+{
+  "commands": [
+    {
+      "name": "New Workspace (7:3)",
+      "description": "Create a new workspace with a 7:3 left-right split (replaces new-workspace.sh once manaflow-ai/cmux#2429 is fixed)",
+      "keywords": ["new", "workspace", "split", "7:3"],
+      "restart": "ignore",
+      "workspace": {
+        "layout": {
+          "direction": "horizontal",
+          "split": 0.7,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal",
+                    "focus": true
+                  }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  {
+                    "type": "terminal"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

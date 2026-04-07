@@ -5,7 +5,7 @@
 # Caches context_pct per surface so on-focus.sh can restore it.
 
 set -euo pipefail
-source "$(dirname "$0")/../lib.sh"
+source "$(dirname "$0")/lib.sh"
 
 cmux_available || exit 0
 

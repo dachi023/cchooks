@@ -5,7 +5,7 @@
 # When the calling surface is focused, updates the sidebar task pill.
 
 set -euo pipefail
-source "$(dirname "$0")/../lib.sh"
+source "$(dirname "$0")/lib.sh"
 
 cmux_available || exit 0
 
