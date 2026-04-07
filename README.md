@@ -5,14 +5,10 @@ Custom hooks for Claude Code, with optional cmux integration.
 ## Install
 
 ```sh
-git clone https://github.com/dachi023/cchooks ~/.claude/scripts
-cd ~/.claude/scripts
 ./install.sh
 ```
 
-The clone location is up to you — `install.sh` resolves paths relative to itself. Subsequent examples assume `~/.claude/scripts`; adjust hook paths if you clone elsewhere.
-
-`install.sh` creates:
+`install.sh` resolves paths relative to itself, so it works wherever you keep this repo. It creates:
 
 - `~/.claude/CLAUDE.md` → `claude/instructions.md` (global user instructions)
 - `~/.config/cmux/cmux.json` → `cmux/cmux.json` (only if cmux is detected)
@@ -22,30 +18,29 @@ Hook registration in `~/.claude/settings.json` is left manual — see below.
 ## Structure
 
 ```
-scripts/
-  install.sh            # One-shot symlink setup
+install.sh            # One-shot symlink setup
 
-  claude/               # Works with Claude Code alone (no cmux)
-    instructions.md     # → ~/.claude/CLAUDE.md
-    statusline.sh       # StatusLine hook → terminal status line
-    say-output.sh       # Stop hook       → TTS + sound (macOS)
+claude/               # Works with Claude Code alone (no cmux)
+  instructions.md     # → ~/.claude/CLAUDE.md
+  statusline.sh       # StatusLine hook → terminal status line
+  say-output.sh       # Stop hook       → TTS + sound (macOS)
 
-  cmux/                 # Requires cmux
-    cmux.json           # → ~/.config/cmux/cmux.json (command palette entries)
-    lib.sh              # Shared bash helpers
-    sidebar-task.sh     # CC PostToolUse hook  → cmux task pill
-    sidebar-focus.sh    # cmux pane-focus hook → restore task pill from cache
-    resume-save.sh      # CC Stop hook         → save "claude --resume ..."
-    bin/                # Manually-invoked CLIs
-      resume-show.sh    # List saved resume commands
-      new-workspace.sh  # Create a 7:3 split workspace (to be retired; see cmux.json)
+cmux/                 # Requires cmux
+  cmux.json           # → ~/.config/cmux/cmux.json (command palette entries)
+  lib.sh              # Shared bash helpers
+  sidebar-task.sh     # CC PostToolUse hook  → cmux task pill
+  sidebar-focus.sh    # cmux pane-focus hook → restore task pill from cache
+  resume-save.sh      # CC Stop hook         → save "claude --resume ..."
+  bin/                # Manually-invoked CLIs
+    resume-show.sh    # List saved resume commands
+    new-workspace.sh  # Create a 7:3 split workspace (to be retired; see cmux.json)
 ```
 
 The split is intentional: install `claude/` alone and everything works without cmux. Install `cmux/` too and you get sidebar task pills and session-resume recovery tied to cmux restarts.
 
 ## Hooks setup
 
-After `install.sh`, register hooks in `~/.claude/settings.json`.
+After `install.sh`, register hooks in `~/.claude/settings.json`. In the snippets below, replace `/path/to/cchooks` with the absolute path to this repo on your machine.
 
 Note: `statusLine` is a top-level config (single command), not a hook event. `hooks` events use the `{ matcher, hooks: [...] }` group form.
 
@@ -55,14 +50,14 @@ Note: `statusLine` is a top-level config (single command), not a hook event. `ho
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/scripts/claude/statusline.sh"
+    "command": "bash /path/to/cchooks/claude/statusline.sh"
   },
   "hooks": {
     "Stop": [
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" }
+          { "type": "command", "command": "bash /path/to/cchooks/claude/say-output.sh" }
         ]
       }
     ]
@@ -86,14 +81,14 @@ Replace the above with this fuller version (adds a `PostToolUse` matcher group a
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/scripts/claude/statusline.sh"
+    "command": "bash /path/to/cchooks/claude/statusline.sh"
   },
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "Task*",
         "hooks": [
-          { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-task.sh" }
+          { "type": "command", "command": "bash /path/to/cchooks/cmux/sidebar-task.sh" }
         ]
       }
     ],
@@ -101,8 +96,8 @@ Replace the above with this fuller version (adds a `PostToolUse` matcher group a
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" },
-          { "type": "command", "command": "bash ~/.claude/scripts/cmux/resume-save.sh" }
+          { "type": "command", "command": "bash /path/to/cchooks/claude/say-output.sh" },
+          { "type": "command", "command": "bash /path/to/cchooks/cmux/resume-save.sh" }
         ]
       }
     ]
@@ -151,11 +146,11 @@ cmux (pane-focus event)
 After a cmux restart, run `cmux/bin/resume-show.sh` to list saved sessions:
 
 ```
-$ ~/.claude/scripts/cmux/bin/resume-show.sh
+$ /path/to/cchooks/cmux/bin/resume-show.sh
   /Users/you/project
     claude --resume abc-123  (2026-04-03 17:46)
 
-$ ~/.claude/scripts/cmux/bin/resume-show.sh --cwd
+$ /path/to/cchooks/cmux/bin/resume-show.sh --cwd
 claude --resume abc-123
 ```
 
