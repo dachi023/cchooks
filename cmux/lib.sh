@@ -2,7 +2,6 @@
 # Shared constants and helpers for cmux integration scripts.
 
 CMUX_BIN="/Applications/cmux.app/Contents/Resources/bin/cmux"
-CONTEXT_CACHE_DIR="/tmp/cmux-claude-status"
 TASK_CACHE_DIR="/tmp/cmux-claude-tasks"
 
 # Sanitize a surface ref (e.g. "surface:34") into a safe filename key.
@@ -33,21 +32,6 @@ get_caller_and_focused_refs() {
 # Returns true if cmux is available and socket is set.
 cmux_available() {
   [[ -x "$CMUX_BIN" ]] && [[ -n "${CMUX_SOCKET_PATH:-}" ]]
-}
-
-# --- Context sidebar helpers ---
-
-# Update the cmux progress bar from a context percentage (0-100).
-# Usage: update_context_sidebar 42
-update_context_sidebar() {
-  local pct="${1:-}"
-  if [[ "$pct" =~ ^[0-9]+\.?[0-9]*$ ]]; then
-    local progress
-    progress=$(awk "BEGIN { printf \"%.2f\", $pct / 100 }")
-    "$CMUX_BIN" set-progress "$progress" --label "Context: ${pct}%" >/dev/null 2>&1
-  else
-    "$CMUX_BIN" set-progress 0.0 --label "Context: --" >/dev/null 2>&1
-  fi
 }
 
 # --- Task sidebar helpers ---

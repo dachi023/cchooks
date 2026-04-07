@@ -33,31 +33,38 @@ scripts/
   cmux/                 # Requires cmux
     cmux.json           # → ~/.config/cmux/cmux.json (command palette entries)
     lib.sh              # Shared bash helpers
-    sidebar-context.sh  # CC StatusLine hook   → cmux context progress bar
     sidebar-task.sh     # CC PostToolUse hook  → cmux task pill
-    sidebar-focus.sh    # cmux pane-focus hook → restore sidebar from cache
+    sidebar-focus.sh    # cmux pane-focus hook → restore task pill from cache
     resume-save.sh      # CC Stop hook         → save "claude --resume ..."
     bin/                # Manually-invoked CLIs
       resume-show.sh    # List saved resume commands
       new-workspace.sh  # Create a 7:3 split workspace (to be retired; see cmux.json)
 ```
 
-The split is intentional: install `claude/` alone and everything works without cmux. Install `cmux/` too and you get sidebar progress bars, task pills, and session-resume recovery tied to cmux restarts.
+The split is intentional: install `claude/` alone and everything works without cmux. Install `cmux/` too and you get sidebar task pills and session-resume recovery tied to cmux restarts.
 
 ## Hooks setup
 
 After `install.sh`, register hooks in `~/.claude/settings.json`.
 
+Note: `statusLine` is a top-level config (single command), not a hook event. `hooks` events use the `{ matcher, hooks: [...] }` group form.
+
 ### Without cmux
 
 ```json
 {
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/scripts/claude/statusline.sh"
+  },
   "hooks": {
-    "StatusLine": [
-      { "type": "command", "command": "bash ~/.claude/scripts/claude/statusline.sh" }
-    ],
     "Stop": [
-      { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" }
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" }
+        ]
+      }
     ]
   }
 }
@@ -73,27 +80,37 @@ Opus │ 5h:⣿⣿⣿⣿⡆⣀⣀⣀ 55%(20:00) │ 7d:⣿⣿⡆⣀⣀⣀⣀⣀ 
 
 ### With cmux
 
-Stack these on top of the above:
+Replace the above with this fuller version (adds a `PostToolUse` matcher group and one extra `Stop` command):
 
 ```json
 {
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/scripts/claude/statusline.sh"
+  },
   "hooks": {
-    "StatusLine": [
-      { "type": "command", "command": "bash ~/.claude/scripts/claude/statusline.sh" },
-      { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-context.sh" }
-    ],
     "PostToolUse": [
-      { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-task.sh" }
+      {
+        "matcher": "Task*",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/scripts/cmux/sidebar-task.sh" }
+        ]
+      }
     ],
     "Stop": [
-      { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" },
-      { "type": "command", "command": "bash ~/.claude/scripts/cmux/resume-save.sh" }
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/scripts/claude/say-output.sh" },
+          { "type": "command", "command": "bash ~/.claude/scripts/cmux/resume-save.sh" }
+        ]
+      }
     ]
   }
 }
 ```
 
-Then register `cmux/sidebar-focus.sh` as a pane-focus hook in cmux settings (needed to restore the sidebar when switching panes).
+Then register `cmux/sidebar-focus.sh` as a pane-focus hook in cmux settings (needed to restore the task pill when switching panes).
 
 ## Custom Commands (cmux.json)
 
@@ -117,12 +134,11 @@ Current entries:
 Claude Code (JSON via stdin)
   ├─→ claude/statusline.sh     → stdout (terminal status line)
   ├─→ claude/say-output.sh     → macOS TTS + completion sound
-  ├─→ cmux/sidebar-context.sh  → cmux progress bar + per-surface cache
   ├─→ cmux/sidebar-task.sh     → cmux task pill + per-surface cache
   └─→ cmux/resume-save.sh      → resume command to /dev/tty + persistent file
 
 cmux (pane-focus event)
-  └─→ cmux/sidebar-focus.sh    → restore sidebar from cache for focused surface
+  └─→ cmux/sidebar-focus.sh    → restore task pill from cache for focused surface
 ```
 
 ### Session Resume
@@ -145,8 +161,7 @@ claude --resume abc-123
 
 ### Cache
 
-- `/tmp/cmux-claude-status/<surface_key>` — context usage (`context_pct=42.5`)
 - `/tmp/cmux-claude-tasks/<surface_key>.json` — task state (JSON)
 - `~/.claude/cmux-resume/<project_key>` — resume commands (persistent)
 
-Per-pane caches are restored by `cmux/sidebar-focus.sh` on focus change.
+The task cache is restored by `cmux/sidebar-focus.sh` on focus change.
