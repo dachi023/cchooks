@@ -2,8 +2,8 @@
 # Display saved Claude Code resume commands.
 #
 # Usage:
-#   show-resume.sh          Show all saved sessions
-#   show-resume.sh --cwd    Show resume command for current directory only
+#   resume-show.sh          Show all saved sessions
+#   resume-show.sh --cwd    Show resume command for current directory only
 
 set -euo pipefail
 
